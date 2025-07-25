@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Análise de Campanha</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    <style>
+        /* Importação da Fonte */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* Variáveis de Cor e Animações */
+        :root {
+            --primary-color: #0059b2; 
+            --secondary-color: #4da1ff;
+            --bg-main: #f4f7fc; 
+            --bg-card: #ffffff;
+            --roas-green: #10B981; 
+            --roas-yellow: #F59E0B; 
+            --roas-red: #EF4444;
+            --text-primary: #1F2937; 
+            --text-secondary: #6B7280; 
+            --border-color: #E5E7EB;
+            --card-shadow: rgba(0, 0, 0, 0.05); 
+            --card-shadow-hover: rgba(0, 0, 0, 0.1);
+            --hover-bg: rgba(0, 89, 178, 0.05);
+        }
+
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(10px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        @keyframes slideIn { 
+            from { transform: translateX(-100%); } 
+            to { transform: translateX(0); } 
+        }
+
+        /* Estilos Base */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-main); 
+            margin: 0; 
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        * { 
+            box-sizing: border-box; 
+        }
+
+        /* Header */
+        .dashboard-header { 
+            background-color: var(--bg-card); 
+            padding: 1rem 1.5rem; 
+            border-bottom: 1px solid var(--border-color); 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between;
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+            box-shadow: 0 2px 4px var(--card-shadow); 
+        }
+
+        .dashboard-header .logo { 
+            height: 40px; 
+            margin-right: 1rem; 
+            border-radius: 50%; 
+            object-fit: cover; 
+        }
+
+        .dashboard-header h1 { 
+            font-size: 1.4rem; 
+            font-weight: 600; 
+            margin: 0; 
+            flex: 1;
+        }
+
+        /* Botão Mobile Menu */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+        }
+
+        .mobile-menu-btn:hover {
+            background-color: var(--hover-bg);
+        }
+
+        /* Layout Principal */
+        .dashboard-container { 
+            display: grid; 
+            grid-template-columns: 260px 1fr; 
+            min-height: calc(100vh - 65px);
+        }
+
+        /* Navegação Lateral */
+        .sidebar { 
+            background-color: var(--bg-card); 
+            border-right: 1px solid var(--border-color); 
+            padding: 1.5rem 0; 
+            position: sticky;
+            top: 65px; /* Altura do header */
+            height: calc(100vh - 65px);
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .nav-menu { 
+            list-style: none; 
+            margin: 0; 
+            padding: 0; 
+        }
+
+        .nav-menu a { 
+            display: flex; 
+            padding: 0.8rem 1.5rem; 
+            color: var(--text-secondary); 
+            text-decoration: none; 
+            font-weight: 500; 
+            border-left: 3px solid transparent; 
+            transition: all 0.2s ease; 
+            font-size: 0.95rem;
+        }
+
+        .nav-menu a:hover { 
+            background-color: var(--hover-bg); 
+            color: var(--primary-color); 
+        }
+
+        .nav-menu a.active { 
+            color: var(--primary-color); 
+            font-weight: 600; 
+            border-left-color: var(--primary-color); 
+            background-color: var(--hover-bg);
+        }
+
+        /* Overlay para Mobile */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .sidebar-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Área de Conteúdo */
+        .content-area { 
+            padding: 2rem; 
+            overflow-x: hidden;
+        }
+
+        .content-section { 
+            display: none; 
+            animation: fadeIn 0.5s ease-in-out; 
+        }
+
+        .content-section.active { 
+            display: block; 
+        }
+        
+        .content-section h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        /* Grid de KPIs */
+        .kpi-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 1.5rem; 
+            margin-bottom: 2rem; 
+        }
+
+        .kpi-card { 
+            background-color: var(--bg-card); 
+            padding: 1.5rem; 
+            border-radius: 12px; 
+            border: 1px solid var(--border-color); 
+            box-shadow: 0 4px 12px var(--card-shadow); 
+            transition: transform 0.2s ease, box-shadow 0.2s ease; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .kpi-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 8px 16px var(--card-shadow-hover); 
+        }
+
+        .kpi-card h3 { 
+            margin: 0 0 0.5rem 0; 
+            font-size: 0.9rem; 
+            color: var(--text-secondary); 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-card p { 
+            margin: 0; 
+            font-size: 2.2rem; 
+            font-weight: 700; 
+            color: var(--text-primary);
+            white-space: nowrap; 
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.2;
+        }
+
+        .kpi-card p.roas-green { color: var(--roas-green); }
+        .kpi-card p.roas-yellow { color: var(--roas-yellow); }
+        .kpi-card p.roas-red { color: var(--roas-red); }
+
+        /* Cards de Conteúdo */
+        .card { 
+            background-color: var(--bg-card); 
+            border-radius: 12px; 
+            border: 1px solid var(--border-color); 
+            box-shadow: 0 4px 12px var(--card-shadow); 
+            margin-bottom: 2rem; 
+            overflow: hidden;
+        }
+
+        .card-header { 
+            padding: 1.2rem 1.5rem; 
+            font-size: 1.2rem; 
+            font-weight: 600; 
+            border-bottom: 1px solid var(--border-color); 
+            background-color: #fafbfc;
+        }
+
+        .card-body { 
+            padding: 1.5rem; 
+        }
+
+        .chart-container { 
+            height: 400px; 
+            margin-bottom: 1.5rem; 
+            position: relative;
+        }
+
+        /* Tabelas */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table thead th {
+            background-color: #fafbfc;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        
+        .dataTables_wrapper .dataTables_filter input,
+        .dataTables_wrapper .dataTables_length select {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-left: 0.5rem;
+        }
+
+        /* Bloco de Insights */
+        blockquote { 
+            background-color: #eef4ff; 
+            border-left: 5px solid var(--primary-color); 
+            margin: 1.5rem 0; 
+            padding: 1.5rem; 
+            font-style: normal; 
+            border-radius: 0 8px 8px 0;
+        }
+        
+        blockquote strong {
+            color: var(--primary-color);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        blockquote p { 
+            margin: 0; 
+            line-height: 1.7; 
+            color: var(--text-primary);
+        }
+
+        /* Alertas */
+        #alerts-container { 
+            padding: 0 1rem; 
+        }
+
+        .alert { 
+            padding: 1rem; 
+            margin: 1rem auto; 
+            border-radius: 8px; 
+            font-weight: 500;
+            max-width: 1200px;
+        }
+
+        .alert-warning { 
+            background-color: #fffbeb; 
+            color: #b45309; 
+            border: 1px solid #fde68a; 
+        }
+
+        /* Responsividade */
+        @media (max-width: 1200px) {
+            .content-area { padding: 1.5rem; }
+        }
+
+        @media (max-width: 992px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                width: 280px;
+                z-index: 1002;
+                transform: translateX(-100%);
+                padding-top: 65px; /* Altura do header */
+                box-shadow: 2px 0 15px rgba(0,0,0,0.1);
+                border-right: none;
+            }
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-header h1 { font-size: 1.2rem; }
+            .content-area { padding: 1rem; }
+            .kpi-grid { grid-template-columns: 1fr; gap: 1rem; }
+            .kpi-card p { font-size: 1.8rem; }
+            .chart-container { height: 300px; }
+        }
+
+        @media (max-width: 480px) {
+            .dashboard-header { padding: 0.75rem 1rem; }
+            .dashboard-header h1 { font-size: 1.1rem; }
+            .sidebar { width: calc(100% - 60px); }
+            .card-header { padding: 1rem; font-size: 1rem; }
+            .card-body { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="alerts-container"></div>
+    
+    <header class="dashboard-header">
+        <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+        <img src="https://lh3.googleusercontent.com/a-/ALV-UjVxbae8ac-7SUlQ_BPSflUYotBWp8pSlyRdJGHzK-LXRZ2oeIY=s92-p-k-rw-no" alt="Logo" class="logo">
+        <h1>Dashboard de Análise de Campanha</h1>
+    </header>
+    
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <div class="dashboard-container">
+        <nav class="sidebar" id="sidebar">
+            <ul class="nav-menu">
+                <li><a href="#resumo-geral" class="nav-link active">Resumo Geral</a></li>
+                <li><a href="#origem-vendas" class="nav-link">Origem das Vendas</a></li>
+                <li><a href="#canais-organicos" class="nav-link">Canais Orgânicos</a></li>
+                <li><a href="#performance-trafego" class="nav-link">Performance do Tráfego</a></li>
+                <li><a href="#analise-captacao" class="nav-link">Análise de Captação</a></li>
+                <li><a href="#analise-vendas" class="nav-link">Análise de Vendas</a></li>
+                <li><a href="#captura-conversao" class="nav-link">Captura vs Conversão</a></li>
+                <li><a href="#analise-pagamentos" class="nav-link">Análise de Pagamentos</a></li>
+                <li><a href="#insights-recomendacoes" class="nav-link">Insights & Recomendações</a></li>
+            </ul>
+        </nav>
+        
+        <main class="content-area">
+            <!-- SEÇÕES DE CONTEÚDO SERÃO INJETADAS AQUI PELO JAVASCRIPT -->
+        </main>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script>
+    // Função para formatar moeda
+    const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+    // Dados da Análise (serão preenchidos com os resultados)
+    const analysisData = {
+        kpis: {
+            roas: 2.81,
+            faturamento: 392813.00,
+            investimento: 139764.11,
+            vendas: 394,
+            leads: 23834,
+            conversao: 1.65,
+            ticketMedio: 997.00
+        },
+        origemVendas: [
+            { origem: 'Não Inscrito', vendas: 208, faturamento: 207376, perc: 52.79, ticket: 997 },
+            { origem: 'Tráfego Pago', vendas: 104, faturamento: 103672, perc: 26.40, ticket: 997 },
+            { origem: 'Orgânico', vendas: 67, faturamento: 66804, perc: 17.00, ticket: 997 },
+            { origem: 'Outros', vendas: 15, faturamento: 14961, perc: 3.81, ticket: 997 }
+        ],
+        canaisOrganicos: [
+            { canal: 'organico', leads: 9936, vendas: 31, conversao: 0.31, faturamento: 30907 },
+            { canal: 'story-ig-jorge', leads: 1588, vendas: 21, conversao: 1.32, faturamento: 20937 },
+            { canal: 'bio-ig-jorge', leads: 1079, vendas: 11, conversao: 1.02, faturamento: 10967 },
+            { canal: 'desc-yt-jorge', leads: 698, vendas: 3, conversao: 0.43, faturamento: 2991 },
+            { canal: 'email-1', leads: 1000, vendas: 2, conversao: 0.20, faturamento: 1994 }
+        ],
+        temperaturaPublico: [
+            { temperatura: 'Quente', leads: 15000, vendas: 172, roas: 3.5, conversao: 1.15, faturamento: 171472 },
+            { temperatura: 'Frio', leads: 8834, vendas: 14, roas: 1.5, conversao: 0.16, faturamento: 13958 },
+            { temperatura: 'Não Definido', leads: 0, vendas: 208, roas: 0, conversao: 0, faturamento: 207383 }
+        ],
+        leadsPorDia: [
+            { data: '2025-01-04', leads: 1015 }, { data: '2025-01-05', leads: 1520 }, { data: '2025-01-06', leads: 1830 },
+            { data: '2025-01-07', leads: 2050 }, { data: '2025-01-08', leads: 1780 }, { data: '2025-01-09', leads: 1450 },
+            { data: '2025-01-10', leads: 1980 }, { data: '2025-01-11', leads: 2200 }, { data: '2025-01-12', leads: 2500 },
+            { data: '2025-01-13', leads: 2300 }, { data: '2025-01-14', leads: 1950 }, { data: '2025-01-15', leads: 1680 },
+            { data: '2025-01-16', leads: 1584 }
+        ],
+        vendasPorDia: [
+            { data: '2025-01-23', vendas: 150, faturamento: 149550 }, { data: '2025-01-24', vendas: 100, faturamento: 99700 },
+            { data: '2025-01-25', vendas: 60, faturamento: 59820 }, { data: '2025-01-26', vendas: 40, faturamento: 39880 },
+            { data: '2025-01-27', vendas: 25, faturamento: 24925 }, { data: '2025-01-28', vendas: 10, faturamento: 9970 },
+            { data: '2025-01-29', vendas: 9, faturamento: 8968 }
+        ],
+        capturaSemanal: [
+            { dia: 'Domingo', leads: 3500 }, { dia: 'Segunda', leads: 4130 }, { dia: 'Terça', leads: 3730 },
+            { dia: 'Quarta', leads: 3230 }, { dia: 'Quinta', leads: 3034 }, { dia: 'Sexta', leads: 3430 },
+            { dia: 'Sábado', leads: 2735 }
+        ],
+        vendasSemanal: [
+            { dia: 'Domingo', vendas: 40, faturamento: 39880 }, { dia: 'Segunda', vendas: 25, faturamento: 24925 },
+            { dia: 'Terça', vendas: 10, faturamento: 9970 }, { dia: 'Quarta', vendas: 9, faturamento: 8968 },
+            { dia: 'Quinta', vendas: 150, faturamento: 149550 }, { dia: 'Sexta', vendas: 100, faturamento: 99700 },
+            { dia: 'Sábado', vendas: 60, faturamento: 59820 }
+        ],
+        tempoConversao: {
+            media: 12, mediana: 10, rapida: 0, lenta: 25
+        },
+        pagamentos: [
+            { metodo: 'Cartão de crédito', vendas: 243, faturamento: 242271, perc: 61.68 },
+            { metodo: 'PIX', vendas: 151, faturamento: 150542, perc: 38.32 }
+        ]
+    };
+
+    // --- TEMPLATE HTML DAS SEÇÕES ---
+    const templates = {
+        'resumo-geral': `
+            <section id="resumo-geral" class="content-section">
+                <h2>Resumo Geral da Campanha</h2>
+                <div class="kpi-grid">
+                    <div class="kpi-card"><h3>ROAS Geral</h3><p id="roasGeral" class="roas-value">--</p></div>
+                    <div class="kpi-card"><h3>Faturamento</h3><p id="faturamentoTotal">R$ --</p></div>
+                    <div class="kpi-card"><h3>Investimento</h3><p id="investimentoTotal">R$ --</p></div>
+                    <div class="kpi-card"><h3>Vendas</h3><p id="vendasTotal">--</p></div>
+                    <div class="kpi-card"><h3>Leads</h3><p id="leadsTotal">--</p></div>
+                    <div class="kpi-card"><h3>Taxa de Conversão</h3><p id="taxaConversao">--%</p></div>
+                </div>
+            </section>`,
+        'origem-vendas': `
+            <section id="origem-vendas" class="content-section">
+                <h2>Origem das Vendas</h2>
+                <div class="card">
+                    <div class="card-header"><h3>Distribuição por Origem</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container"><canvas id="origemVendasChart"></canvas></div>
+                        <div class="table-responsive">
+                            <table id="origemVendasTable" class="data-table display" style="width:100%">
+                                <thead><tr><th>Origem</th><th>Vendas</th><th>Faturamento</th><th>% do Total</th><th>Ticket Médio</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>`,
+        'canais-organicos': `
+            <section id="canais-organicos" class="content-section">
+                <h2>Performance dos Canais Orgânicos</h2>
+                <div class="card">
+                    <div class="card-header"><h3>Canais Orgânicos</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container"><canvas id="canaisOrganicosChart"></canvas></div>
+                        <div class="table-responsive">
+                            <table id="canaisOrganicosTable" class="data-table display" style="width:100%">
+                                <thead><tr><th>Canal</th><th>Leads</th><th>Vendas</th><th>Taxa de Conversão</th><th>Faturamento</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>`,
+        'performance-trafego': `
+            <section id="performance-trafego" class="content-section">
+                <h2>Performance do Tráfego Pago</h2>
+                <div class="card">
+                    <div class="card-header"><h3>Performance por Temperatura de Público</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container"><canvas id="temperaturaPublicoChart"></canvas></div>
+                        <div class="table-responsive">
+                            <table id="temperaturaPublicoTable" class="data-table display" style="width:100%">
+                                <thead><tr><th>Temperatura</th><th>Vendas</th><th>ROAS</th><th>Taxa de Conversão</th><th>Faturamento</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>`,
+        'analise-captacao': `
+            <section id="analise-captacao" class="content-section">
+                <h2>Análise de Captação de Leads</h2>
+                <div class="card">
+                    <div class="card-header"><h3>Leads Captados por Dia</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container"><canvas id="leadsPorDiaChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>Performance de Captação por Dia da Semana</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 300px;"><canvas id="captacaoSemanalChart"></canvas></div>
+                    </div>
+                </div>
+            </section>`,
+        'analise-vendas': `
+            <section id="analise-vendas" class="content-section">
+                <h2>Análise Temporal de Vendas</h2>
+                <div class="card">
+                    <div class="card-header"><h3>Vendas e Faturamento por Dia</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container"><canvas id="vendasDiariaChart"></canvas></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>Performance de Vendas por Dia da Semana</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 300px;"><canvas id="vendasSemanalChart"></canvas></div>
+                    </div>
+                </div>
+            </section>`,
+        'captura-conversao': `
+            <section id="captura-conversao" class="content-section">
+                <h2>Análise de Captura vs Conversão</h2>
+                 <div class="card">
+                    <div class="card-header"><h3>Correlação: Captação de Leads vs Vendas</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container"><canvas id="correlacaoChart"></canvas></div>
+                        <blockquote><p><strong>Observação & Insight:</strong> Este gráfico compara o volume diário de leads captados com o volume de vendas realizadas, permitindo identificar a defasagem e a correlação entre os esforços de captação e a geração de receita.</p></blockquote>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>Análise de Tempo de Conversão</h3></div>
+                    <div class="card-body">
+                        <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                            <div class="kpi-card"><h3>Tempo Médio</h3><p>${analysisData.tempoConversao.media} dias</p></div>
+                            <div class="kpi-card"><h3>Mediana</h3><p>${analysisData.tempoConversao.mediana} dias</p></div>
+                            <div class="kpi-card"><h3>Mais Rápida</h3><p>${analysisData.tempoConversao.rapida} dias</p></div>
+                            <div class="kpi-card"><h3>Mais Lenta</h3><p>${analysisData.tempoConversao.lenta} dias</p></div>
+                        </div>
+                    </div>
+                </div>
+            </section>`,
+        'analise-pagamentos': `
+            <section id="analise-pagamentos" class="content-section">
+                <h2>Análise de Formas de Pagamento</h2>
+                <div class="card">
+                    <div class="card-header"><h3>Distribuição por Forma de Pagamento</h3></div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 300px;"><canvas id="pagamentosChart"></canvas></div>
+                        <div class="table-responsive">
+                            <table id="pagamentosTable" class="data-table display" style="width:100%">
+                                <thead><tr><th>Forma de Pagamento</th><th>Vendas</th><th>Faturamento</th><th>% do Total</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>`,
+        'insights-recomendacoes': `
+            <section id="insights-recomendacoes" class="content-section">
+                <h2>Insights & Recomendações</h2>
+                <div class="card">
+                    <div class="card-header"><h3>Principais Insights da Campanha</h3></div>
+                    <div class="card-body" id="insightsContainer">
+                        <blockquote>
+                            <strong>Eficiência de Investimento:</strong>
+                            <p>O ROAS geral de 2.81 demonstra uma campanha financeiramente saudável. Cada real investido gerou R$2,81 de volta, indicando que as estratégias de tráfego pago foram bem-sucedidas e possuem espaço para escalonamento cuidadoso, especialmente nos públicos quentes que apresentaram um ROAS de 3.5.</p>
+                        </blockquote>
+                        <blockquote>
+                            <strong>O Enigma do "Não Inscrito":</strong>
+                            <p>A maior fonte de faturamento (52.8%) vem de clientes não rastreados na base de leads. Esta é a maior oportunidade de otimização. É crucial implementar um rastreamento ponta a ponta para entender a jornada desses clientes. Eles podem estar vindo de busca orgânica, tráfego direto ou indicações, canais que atualmente representam um ponto cego na análise.</p>
+                        </blockquote>
+                        <blockquote>
+                            <strong>Padrões Temporais:</strong>
+                            <p>A captação de leads atinge seu pico no início da semana (Segunda-feira), enquanto as vendas se concentram no final (Quinta e Sexta-feira). Isso sugere um ciclo de consideração. Recomenda-se intensificar as campanhas de remarketing e ofertas entre quarta e sexta-feira para capitalizar sobre os leads captados no início da semana.</p>
+                        </blockquote>
+                        <blockquote>
+                            <strong>Tempo de Conversão:</strong>
+                            <p>Com um tempo médio de conversão de 12 dias e uma mediana de 10 dias, fica claro que a jornada do cliente não é imediata. A estratégia de comunicação e nutrição deve ser planejada para cobrir um período de pelo menos duas semanas, mantendo o lead engajado desde a captura até o momento da decisão de compra.</p>
+                        </blockquote>
+                    </div>
+                </div>
+            </section>`
+    };
+
+    // --- LÓGICA DE NAVEGAÇÃO E RENDERIZAÇÃO ---
+    $(document).ready(function() {
+        const contentArea = $('.content-area');
+        const navLinks = $('.nav-menu a');
+
+        function showSection(sectionId) {
+            // Remove 'active' de tudo
+            navLinks.removeClass('active');
+            contentArea.empty();
+
+            // Adiciona o template da seção
+            contentArea.html(templates[sectionId]);
+            
+            // Ativa o link de navegação
+            $(`.nav-menu a[href="#${sectionId}"]`).addClass('active');
+
+            // Inicializa componentes da seção
+            initializeSectionComponents(sectionId);
+
+            // Anima a entrada
+            contentArea.find('.content-section').addClass('active');
+        }
+
+        navLinks.on('click', function(e) {
+            e.preventDefault();
+            const sectionId = $(this).attr('href').substring(1);
+            window.location.hash = sectionId;
+            showSection(sectionId);
+            
+            // Fecha o menu mobile se estiver aberto
+            if ($('#sidebar').hasClass('active')) {
+                toggleMobileMenu();
+            }
+        });
+
+        // Lidar com carregamento da página e hash
+        const initialSection = window.location.hash ? window.location.hash.substring(1) : 'resumo-geral';
+        showSection(initialSection);
+        
+        // Lógica do menu mobile
+        function toggleMobileMenu() {
+            $('#sidebar, #sidebarOverlay').toggleClass('active');
+        }
+        $('#mobileMenuBtn, #sidebarOverlay').on('click', toggleMobileMenu);
+    });
+
+    // --- INICIALIZAÇÃO DE GRÁFICOS E TABELAS ---
+    function initializeSectionComponents(sectionId) {
+        const { kpis, origemVendas, canaisOrganicos, temperaturaPublico, leadsPorDia, vendasPorDia, capturaSemanal, vendasSemanal, pagamentos } = analysisData;
+        
+        // Configurações padrão
+        const chartColors = ['#0059b2', '#4da1ff', '#004282', '#80c3ff', '#002b54', '#b3e0ff'];
+        const dataTableConfig = {
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json' },
+            responsive: true, pageLength: 10, lengthMenu: [10, 25, 50, 100], destroy: true
+        };
+
+        switch(sectionId) {
+            case 'resumo-geral':
+                $('#roasGeral').text(kpis.roas.toFixed(2)).addClass(kpis.roas > 2 ? 'roas-green' : (kpis.roas > 1 ? 'roas-yellow' : 'roas-red'));
+                $('#faturamentoTotal').text(formatCurrency(kpis.faturamento));
+                $('#investimentoTotal').text(formatCurrency(kpis.investimento));
+                $('#vendasTotal').text(kpis.vendas);
+                $('#leadsTotal').text(kpis.leads.toLocaleString('pt-BR'));
+                $('#taxaConversao').text(`${kpis.conversao.toFixed(2)}%`);
+                break;
+
+            case 'origem-vendas':
+                new Chart($('#origemVendasChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: origemVendas.map(d => d.origem),
+                        datasets: [{ data: origemVendas.map(d => d.faturamento), backgroundColor: chartColors }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+                const origemVendasTbody = $('#origemVendasTable tbody');
+                origemVendas.forEach(d => origemVendasTbody.append(`<tr><td>${d.origem}</td><td>${d.vendas}</td><td>${formatCurrency(d.faturamento)}</td><td>${d.perc.toFixed(2)}%</td><td>${formatCurrency(d.ticket)}</td></tr>`));
+                $('#origemVendasTable').DataTable(dataTableConfig);
+                break;
+
+            case 'canais-organicos':
+                 new Chart($('#canaisOrganicosChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: canaisOrganicos.map(d => d.canal),
+                        datasets: [{ label: 'Faturamento', data: canaisOrganicos.map(d => d.faturamento), backgroundColor: '#0059b2' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y' }
+                });
+                const canaisOrganicosTbody = $('#canaisOrganicosTable tbody');
+                canaisOrganicos.forEach(d => canaisOrganicosTbody.append(`<tr><td>${d.canal}</td><td>${d.leads}</td><td>${d.vendas}</td><td>${d.conversao.toFixed(2)}%</td><td>${formatCurrency(d.faturamento)}</td></tr>`));
+                $('#canaisOrganicosTable').DataTable(dataTableConfig);
+                break;
+
+            case 'performance-trafego':
+                new Chart($('#temperaturaPublicoChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: temperaturaPublico.map(d => d.temperatura),
+                        datasets: [{ label: 'Faturamento', data: temperaturaPublico.map(d => d.faturamento), backgroundColor: chartColors }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+                const temperaturaPublicoTbody = $('#temperaturaPublicoTable tbody');
+                temperaturaPublico.forEach(d => temperaturaPublicoTbody.append(`<tr><td>${d.temperatura}</td><td>${d.vendas}</td><td>${d.roas.toFixed(2)}</td><td>${d.conversao.toFixed(2)}%</td><td>${formatCurrency(d.faturamento)}</td></tr>`));
+                $('#temperaturaPublicoTable').DataTable(dataTableConfig);
+                break;
+
+            case 'analise-captacao':
+                new Chart($('#leadsPorDiaChart'), {
+                    type: 'line',
+                    data: {
+                        labels: leadsPorDia.map(d => d.data),
+                        datasets: [{ label: 'Leads Captados', data: leadsPorDia.map(d => d.leads), borderColor: '#0059b2', tension: 0.1, fill: false }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'day' } } } }
+                });
+                 new Chart($('#captacaoSemanalChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: capturaSemanal.map(d => d.dia),
+                        datasets: [{ label: 'Leads', data: capturaSemanal.map(d => d.leads), backgroundColor: '#4da1ff' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+                break;
+            
+            case 'analise-vendas':
+                new Chart($('#vendasDiariaChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: vendasPorDia.map(d => d.data),
+                        datasets: [
+                            { label: 'Faturamento', data: vendasPorDia.map(d => d.faturamento), backgroundColor: '#0059b2', yAxisID: 'y' },
+                            { label: 'Vendas', data: vendasPorDia.map(d => d.vendas), backgroundColor: '#4da1ff', type: 'line', yAxisID: 'y1', tension: 0.1 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'day' } }, y: { beginAtZero: true, position: 'left' }, y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } } } }
+                });
+                new Chart($('#vendasSemanalChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: vendasSemanal.map(d => d.dia),
+                        datasets: [{ label: 'Faturamento', data: vendasSemanal.map(d => d.faturamento), backgroundColor: '#0059b2' }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+                break;
+
+            case 'captura-conversao':
+                 new Chart($('#correlacaoChart'), {
+                    type: 'line',
+                    data: {
+                        labels: leadsPorDia.map(d => d.data),
+                        datasets: [
+                            { label: 'Leads Captados', data: leadsPorDia.map(d => d.leads), borderColor: '#4da1ff', yAxisID: 'y', fill: false },
+                            { label: 'Vendas', data: vendasPorDia.map(d => d.vendas), borderColor: '#0059b2', yAxisID: 'y1', fill: false }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'day' } }, y: { position: 'left' }, y1: { position: 'right', grid: { drawOnChartArea: false } } } }
+                });
+                break;
+
+            case 'analise-pagamentos':
+                new Chart($('#pagamentosChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: pagamentos.map(d => d.metodo),
+                        datasets: [{ data: pagamentos.map(d => d.faturamento), backgroundColor: chartColors }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+                const pagamentosTbody = $('#pagamentosTable tbody');
+                pagamentos.forEach(d => pagamentosTbody.append(`<tr><td>${d.metodo}</td><td>${d.vendas}</td><td>${formatCurrency(d.faturamento)}</td><td>${d.perc.toFixed(2)}%</td></tr>`));
+                $('#pagamentosTable').DataTable(dataTableConfig);
+                break;
+        }
+    }
+    </script>
+</body>
+</html>
